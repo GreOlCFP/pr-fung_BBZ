@@ -133,3 +133,8 @@ else:
             with st.container(border=True):
                 st.subheader(row["Prüfung"])
                 st.write(f"{T[lang]['time']} : {row['Prüfungszeit']}")
+                st.write(f"{T[lang]['class']} : {row['Klasse']}")
+                st.write(f"{T[lang]['teacher']} : {row['Lehrperson der Klasse']}")
+                st.write(f"{T[lang]['supervisor']} : {row['Aufsichtsperson']}")
+                
+                st.badge(row["Sprache"])
