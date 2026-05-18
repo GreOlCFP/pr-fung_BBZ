@@ -49,7 +49,7 @@ def load_data():
     df.columns = df.columns.str.strip()
     return df
 
-df = load_data()
+df = df["Prüfungsdatum"] = pd.to_datetime(df["Prüfungsdatum"]).dt.strftime("%d.%m.%Y")
 
 # ===== TITLE =====
 st.title(T[lang]["title"])
