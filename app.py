@@ -4,11 +4,18 @@ import pandas as pd
 # ===== CONFIG =====
 st.set_page_config(page_title="Examens", layout="wide")
 
+# ===== HEADER AVEC LOGO =====
+col_logo, col_title = st.columns([1, 5])
+
+with col_logo:
+    st.image("logo.png", width=100)  # ✅ ajoute ton logo dans le repo
+
 # ===== LANGUE =====
-lang = st.sidebar.selectbox(
-    "🌍 Lang / Sprache",
-    ["FR", "DE"]
-)
+with col_title:
+    lang = st.selectbox(
+        "🌍 Lang / Sprache",
+        ["FR", "DE"]
+    )
 
 # ===== TRADUCTIONS =====
 T = {
@@ -17,6 +24,7 @@ T = {
         "filters": "🔎 Filtres",
         "language": "Langue",
         "class": "Classe",
+        "reset": "🔄 Réinitialiser",
         "exams": "📋 Examens",
         "classes": "🏫 Classes",
         "languages": "🌍 Langues",
@@ -31,6 +39,7 @@ T = {
         "filters": "🔎 Filter",
         "language": "Sprache",
         "class": "Klasse",
+        "reset": "🔄 Zurücksetzen",
         "exams": "📋 Prüfungen",
         "classes": "🏫 Klassen",
         "languages": "🌍 Sprachen",
@@ -42,44 +51,51 @@ T = {
     }
 }
 
+st.title(T[lang]["title"])
+
 # ===== LOAD DATA =====
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
     df.columns = df.columns.str.strip()
-    
-    # ✅ FORMAT DATE EUROPÉEN
     df["Prüfungsdatum"] = pd.to_datetime(df["Prüfungsdatum"]).dt.strftime("%d.%m.%Y")
-    
     return df
 
 df = load_data()
 
-# ===== TITLE =====
-st.title(T[lang]["title"])
-
-# ===== SIDEBAR FILTERS =====
+# ===== SIDEBAR =====
 st.sidebar.header(T[lang]["filters"])
 
+# ✅ bouton reset
+if st.sidebar.button(T[lang]["reset"]):
+    st.session_state.clear()
+    st.rerun()
+
+# ===== FILTRES =====
 langues = df["Sprache"].dropna().unique()
 selected_langue = st.sidebar.multiselect(
     T[lang]["language"],
     options=langues,
-    default=langues
+    key="lang_filter"
 )
 
 classes = df["Klasse"].dropna().unique()
 selected_classe = st.sidebar.multiselect(
     T[lang]["class"],
     options=classes,
-    default=classes
+    key="class_filter"
 )
 
-# ===== FILTER DATA =====
-filtered_df = df[
-    (df["Sprache"].isin(selected_langue)) &
-    (df["Klasse"].isin(selected_classe))
-].sort_values(by=["Prüfungsdatum", "Prüfungszeit"])
+# ===== FILTRAGE INDÉPENDANT =====
+filtered_df = df.copy()
+
+if selected_langue:
+    filtered_df = filtered_df[filtered_df["Sprache"].isin(selected_langue)]
+
+if selected_classe:
+    filtered_df = filtered_df[filtered_df["Klasse"].isin(selected_classe)]
+
+filtered_df = filtered_df.sort_values(by=["Prüfungsdatum", "Prüfungszeit"])
 
 # ===== KPI =====
 col1, col2, col3 = st.columns(3)
@@ -106,4 +122,3 @@ else:
                 st.write(f"{T[lang]['supervisor']} : {row['Aufsichtsperson']}")
                 
                 st.badge(row["Sprache"])
-            
