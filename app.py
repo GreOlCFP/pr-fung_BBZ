@@ -10,13 +10,8 @@ col_logo, col_lang, col_empty = st.columns([1, 2, 5])
 with col_logo:
     st.image("logo.png", width=100)
 
-# ✅ Selectbox largeur adaptée
 with col_lang:
-    lang = st.selectbox(
-        "🌍",
-        ["FR", "DE"],
-        label_visibility="collapsed"
-    )
+    lang = st.selectbox("🌍", ["FR", "DE"], label_visibility="collapsed")
 
 # ===== TRADUCTIONS =====
 T = {
@@ -60,8 +55,23 @@ st.title(T[lang]["title"])
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
-    df.columns = df.columns.str.strip()
-    df["Prüfungsdatum"] = pd.to_datetime(df["Prüfungsdatum"]).dt.strftime("%d.%m.%Y")
+
+    # Nettoyage colonnes
+    df.columns = df.columns.str.strip().str.replace("\xa0", "")
+
+    # ✅ Renommage PRO des colonnes
+    df = df.rename(columns={
+        "Prüfung": "Examen",
+        "Prüfungsdatum": "Date",
+        "Prüfungszeit": "Heure",
+        "Lehrperson der Klasse": "Enseignant",
+        "Aufsichtsperson": "Surveillance",
+        "Sprache": "Langue"
+    })
+
+    # ✅ Format date européen
+    df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%d.%m.%Y")
+
     return df
 
 df = load_data()
@@ -69,13 +79,13 @@ df = load_data()
 # ===== SIDEBAR =====
 st.sidebar.header(T[lang]["filters"])
 
-# ✅ Reset bouton
+# Reset
 if st.sidebar.button(T[lang]["reset"]):
     st.session_state.clear()
     st.rerun()
 
 # ===== FILTRES =====
-langues = df["Sprache"].dropna().unique()
+langues = df["Langue"].dropna().unique()
 selected_langue = st.sidebar.multiselect(
     T[lang]["language"],
     options=langues,
@@ -89,19 +99,19 @@ selected_classe = st.sidebar.multiselect(
     key="class_filter"
 )
 
-# ✅ Recherche rapide
+# Recherche rapide
 search = st.sidebar.text_input(T[lang]["search"])
 
 # ===== FILTRAGE =====
 filtered_df = df.copy()
 
 if selected_langue:
-    filtered_df = filtered_df[filtered_df["Sprache"].isin(selected_langue)]
+    filtered_df = filtered_df[filtered_df["Langue"].isin(selected_langue)]
 
 if selected_classe:
     filtered_df = filtered_df[filtered_df["Klasse"].isin(selected_classe)]
 
-# ✅ Recherche globale
+# Recherche globale
 if search:
     filtered_df = filtered_df[
         filtered_df.apply(
@@ -110,14 +120,14 @@ if search:
         )
     ]
 
-# ✅ TRI
-filtered_df = filtered_df.sort_values(by=["Prüfungsdatum", "Prüfungszeit"])
+# Tri sécurisé
+filtered_df = filtered_df.sort_values(by=["Date", "Heure"])
 
 # ===== KPI =====
 col1, col2, col3 = st.columns(3)
 col1.metric(T[lang]["exams"], len(filtered_df))
 col2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
-col3.metric(T[lang]["languages"], filtered_df["Sprache"].nunique())
+col3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
 
 st.divider()
 
@@ -125,16 +135,16 @@ st.divider()
 if filtered_df.empty:
     st.warning(T[lang]["no_results"])
 else:
-    for date, group in filtered_df.groupby("Prüfungsdatum"):
+    for date, group in filtered_df.groupby("Date"):
 
         st.header(f"{T[lang]['date']} : {date}")
 
         for _, row in group.iterrows():
             with st.container(border=True):
-                st.subheader(row["Prüfung"])
-                st.write(f"{T[lang]['time']} : {row['Prüfungszeit']}")
+                st.subheader(row["Examen"])
+                st.write(f"{T[lang]['time']} : {row['Heure']}")
                 st.write(f"{T[lang]['class']} : {row['Klasse']}")
-                st.write(f"{T[lang]['teacher']} : {row['Lehrperson der Klasse']}")
-                st.write(f"{T[lang]['supervisor']} : {row['Aufsichtsperson']}")
+                st.write(f"{T[lang]['teacher']} : {row['Enseignant']}")
+                st.write(f"{T[lang]['supervisor']} : {row['Surveillance']}")
                 
-                st.badge(row["Sprache"])
+                st.badge(row["Langue"])
