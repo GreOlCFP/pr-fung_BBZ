@@ -13,7 +13,7 @@ with col_logo:
 # ===== LANGUE =====
 with col_title:
     lang = st.selectbox(
-        "🌍 Lang / Sprache",
+        "🌍 Langue / Sprache",
         ["FR", "DE"]
     )
 
