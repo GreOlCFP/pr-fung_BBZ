@@ -47,9 +47,13 @@ T = {
 def load_data():
     df = pd.read_excel("examens.xlsx")
     df.columns = df.columns.str.strip()
+    
+    # ✅ FORMAT DATE EUROPÉEN
+    df["Prüfungsdatum"] = pd.to_datetime(df["Prüfungsdatum"]).dt.strftime("%d.%m.%Y")
+    
     return df
 
-df = df["Prüfungsdatum"] = pd.to_datetime(df["Prüfungsdatum"]).dt.strftime("%d.%m.%Y")
+df = load_data()
 
 # ===== TITLE =====
 st.title(T[lang]["title"])
@@ -57,7 +61,6 @@ st.title(T[lang]["title"])
 # ===== SIDEBAR FILTERS =====
 st.sidebar.header(T[lang]["filters"])
 
-# Filtre langue
 langues = df["Sprache"].dropna().unique()
 selected_langue = st.sidebar.multiselect(
     T[lang]["language"],
@@ -65,7 +68,6 @@ selected_langue = st.sidebar.multiselect(
     default=langues
 )
 
-# Filtre classe
 classes = df["Klasse"].dropna().unique()
 selected_classe = st.sidebar.multiselect(
     T[lang]["class"],
@@ -87,7 +89,7 @@ col3.metric(T[lang]["languages"], filtered_df["Sprache"].nunique())
 
 st.divider()
 
-# ===== AFFICHAGE VERTICAL =====
+# ===== AFFICHAGE =====
 if filtered_df.empty:
     st.warning(T[lang]["no_results"])
 else:
@@ -104,3 +106,4 @@ else:
                 st.write(f"{T[lang]['supervisor']} : {row['Aufsichtsperson']}")
                 
                 st.badge(row["Sprache"])
+            
