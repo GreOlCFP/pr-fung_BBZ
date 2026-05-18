@@ -53,8 +53,11 @@ col3.metric("🌍 Langues", filtered_df["Sprache"].nunique())
 st.divider()
 
 # ===== DISPLAY (STYLE CARTE STABLE) =====
-cols = st.columns(2)
 
+for _, row in filtered_df.iterrows():
+    with st.container():
+        st.subheader(row["Prüfung"])
+        st
 for i, (_, row) in enumerate(filtered_df.iterrows()):
     with cols[i % 2]:
         with st.container():
