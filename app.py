@@ -4,17 +4,18 @@ import pandas as pd
 # ===== CONFIG =====
 st.set_page_config(page_title="Examens", layout="wide")
 
-# ===== HEADER AVEC LOGO =====
-col_logo, col_title = st.columns([1, 5])
+# ===== HEADER =====
+col_logo, col_lang, col_empty = st.columns([1, 2, 5])
 
 with col_logo:
-    st.image("logo.png", width=100)  # ✅ ajoute ton logo dans le repo
+    st.image("logo.png", width=100)
 
-# ===== LANGUE =====
-with col_title:
+# ✅ Selectbox largeur adaptée
+with col_lang:
     lang = st.selectbox(
-        "🌍 Langue / Sprache",
-        ["FR", "DE"]
+        "🌍",
+        ["FR", "DE"],
+        label_visibility="collapsed"
     )
 
 # ===== TRADUCTIONS =====
@@ -24,6 +25,7 @@ T = {
         "filters": "🔎 Filtres",
         "language": "Langue",
         "class": "Classe",
+        "search": "🔎 Recherche",
         "reset": "🔄 Réinitialiser",
         "exams": "📋 Examens",
         "classes": "🏫 Classes",
@@ -39,6 +41,7 @@ T = {
         "filters": "🔎 Filter",
         "language": "Sprache",
         "class": "Klasse",
+        "search": "🔎 Suche",
         "reset": "🔄 Zurücksetzen",
         "exams": "📋 Prüfungen",
         "classes": "🏫 Klassen",
@@ -66,7 +69,7 @@ df = load_data()
 # ===== SIDEBAR =====
 st.sidebar.header(T[lang]["filters"])
 
-# ✅ bouton reset
+# ✅ Reset bouton
 if st.sidebar.button(T[lang]["reset"]):
     st.session_state.clear()
     st.rerun()
@@ -86,7 +89,10 @@ selected_classe = st.sidebar.multiselect(
     key="class_filter"
 )
 
-# ===== FILTRAGE INDÉPENDANT =====
+# ✅ Recherche rapide
+search = st.sidebar.text_input(T[lang]["search"])
+
+# ===== FILTRAGE =====
 filtered_df = df.copy()
 
 if selected_langue:
@@ -95,6 +101,16 @@ if selected_langue:
 if selected_classe:
     filtered_df = filtered_df[filtered_df["Klasse"].isin(selected_classe)]
 
+# ✅ Recherche globale
+if search:
+    filtered_df = filtered_df[
+        filtered_df.apply(
+            lambda row: row.astype(str).str.contains(search, case=False).any(),
+            axis=1
+        )
+    ]
+
+# ✅ TRI
 filtered_df = filtered_df.sort_values(by=["Prüfungsdatum", "Prüfungszeit"])
 
 # ===== KPI =====
@@ -117,8 +133,3 @@ else:
             with st.container(border=True):
                 st.subheader(row["Prüfung"])
                 st.write(f"{T[lang]['time']} : {row['Prüfungszeit']}")
-                st.write(f"{T[lang]['class']} : {row['Klasse']}")
-                st.write(f"{T[lang]['teacher']} : {row['Lehrperson der Klasse']}")
-                st.write(f"{T[lang]['supervisor']} : {row['Aufsichtsperson']}")
-                
-                st.badge(row["Sprache"])
