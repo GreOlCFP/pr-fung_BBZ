@@ -3,6 +3,7 @@ import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
+from datetime import datetime
 import tempfile
 
 # ===== CONFIG =====
@@ -102,7 +103,6 @@ if search:
         filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
     ]
 
-# ✅ TRI GARANTI
 filtered_df = filtered_df.sort_values(by=["Date_obj","Heure"])
 
 # ===== KPI =====
@@ -111,42 +111,47 @@ c1.metric(T[lang]["exams"], len(filtered_df))
 c2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
 c3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
 
-# ===== PDF ULTRA DESIGN =====
+# ===== PDF ULTRA PRO =====
 def generate_pdf(data):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     c = canvas.Canvas(tmp.name, pagesize=A4)
 
     width, height = A4
-    y = height - 60
 
-    # TRI ABSOLU
+    # ===== TRI =====
     data = data.sort_values(by=["Date_obj", "Heure"])
 
-    # LOGO
+    # ===== HEADER ALIGNÉ =====
+    logo_w = 70
+    logo_h = 40
+
+    logo_y_center = height - 60
+    logo_y = logo_y_center - (logo_h / 2)
+
     try:
-        c.drawImage(
-            "logo.png",
-            40, height - 85,
-            width=70,
-            height=40,
-            preserveAspectRatio=True,
-            mask='auto'
-        )
+        c.drawImage("logo.png", 40, logo_y, width=logo_w, height=logo_h, preserveAspectRatio=True)
     except:
         pass
 
-    # TITRE
+    # Titre aligné verticalement avec logo
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(120, height - 55, "Planning des examens")
+    title_text = "Planning des examens"
+
+    # approx hauteur texte ~12
+    title_y = logo_y_center - 6
+
+    c.drawString(120, title_y, title_text)
+
+    # Ligne propre sous header
+    line_y = logo_y - 10
 
     c.setStrokeColor(colors.grey)
-    c.line(40, height - 70, width - 40, height - 70)
+    c.line(40, line_y, width - 40, line_y)
 
-    y -= 50
+    y = line_y - 30
 
-    # CONTENU PAR DATE
+    # ===== CONTENT =====
     for date_obj, group in data.groupby("Date_obj", sort=True):
-
         date_str = date_obj.strftime("%d.%m.%Y")
 
         c.setFont("Helvetica-Bold", 13)
@@ -158,23 +163,22 @@ def generate_pdf(data):
         for _, row in group.iterrows():
 
             # CARTE
-            card_height = 75
+            card_h = 75
             c.setFillColor(colors.whitesmoke)
-            c.roundRect(45, y - card_height, width - 90, card_height, 10, fill=1)
+            c.roundRect(45, y - card_h, width - 90, card_h, 10, fill=1)
 
             # TEXTE
             c.setFillColor(colors.black)
-
             c.setFont("Helvetica-Bold", 11)
             c.drawString(60, y - 20, row["Examen"])
 
             c.setFont("Helvetica", 9)
             c.setFillColor(colors.darkgray)
-            c.drawString(60, y - 35, f"{row['Heure']}  |  {row['Klasse']}")
+            c.drawString(60, y - 35, f"{row['Heure']} | {row['Klasse']}")
             c.drawString(60, y - 48, row["Enseignant"])
             c.drawString(60, y - 60, row["Surveillance"])
 
-            # BADGE LANGUE CENTRÉ
+            # BADGE ALIGNÉ
             badge_w = 65
             badge_h = 20
             bx = width - 130
@@ -195,12 +199,30 @@ def generate_pdf(data):
 
             y -= 90
 
-            if y < 100:
+            # PAGE BREAK + FOOTER
+            if y < 120:
+                add_footer(c, width)
                 c.showPage()
                 y = height - 60
 
+    # FOOTER FINAL
+    add_footer(c, width)
+
     c.save()
     return tmp.name
+
+
+# ===== FOOTER =====
+def add_footer(c, width):
+    c.setFont("Helvetica", 8)
+    c.setFillColor(colors.grey)
+
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+    footer_text = f"Généré le {now}"
+
+    c.drawRightString(width - 40, 20, footer_text)
+
 
 # ===== EXPORT =====
 if not filtered_df.empty:
@@ -210,7 +232,7 @@ if not filtered_df.empty:
 
 st.divider()
 
-# ===== COULEURS UI =====
+# ===== UI COULEUR =====
 def get_color(langue):
     return "blue" if "fr" in langue.lower() else "orange"
 
