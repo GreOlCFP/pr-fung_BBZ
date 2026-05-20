@@ -56,7 +56,7 @@ T = {
 
 st.title(T[lang]["title"])
 
-# ===== LOAD =====
+# ===== LOAD DATA =====
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
@@ -71,8 +71,8 @@ def load_data():
         "Sprache":"Langue"
     })
 
+    # ✅ Date object (important)
     df["Date_obj"] = pd.to_datetime(df["Date"])
-    df["Date"] = df["Date_obj"].dt.strftime("%d.%m.%Y")
 
     return df
 
@@ -103,6 +103,7 @@ if search:
         filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
     ]
 
+# ✅ TRI CORRECT
 filtered_df = filtered_df.sort_values(by=["Date_obj","Heure"])
 
 # ===== KPI =====
@@ -111,49 +112,52 @@ c1.metric(T[lang]["exams"], len(filtered_df))
 c2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
 c3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
 
-# ===== PDF =====
+# ===== PDF ULTRA DESIGN =====
 def generate_pdf(data):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     c = canvas.Canvas(tmp.name, pagesize=A4)
 
-    width,height = A4
+    width, height = A4
     y = height - 60
 
+    # Logo
     try:
         c.drawImage("logo.png", 40, height-80, width=70)
     except:
         pass
 
-    c.setFont("Helvetica-Bold",18)
-    c.drawString(130,height-55,"Planning des examens")
-    c.line(40,height-65,width-40,height-65)
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(130, height-55, "Planning des examens")
+    c.line(40, height-65, width-40, height-65)
 
     y -= 40
 
-    for date,group in data.groupby("Date"):
-        c.setFont("Helvetica-Bold",13)
-        c.drawString(50,y,date)
+    for date_obj, group in data.groupby("Date_obj"):
+        date_str = date_obj.strftime("%d.%m.%Y")
+
+        c.setFont("Helvetica-Bold", 13)
+        c.drawString(50, y, date_str)
         y -= 20
 
-        for _,row in group.iterrows():
+        for _, row in group.iterrows():
             c.setFillColor(colors.whitesmoke)
-            c.roundRect(45,y-75,width-90,70,12,fill=1)
+            c.roundRect(45, y-75, width-90, 70, 12, fill=1)
 
             c.setFillColor(colors.black)
-            c.setFont("Helvetica-Bold",11)
-            c.drawString(60,y-20,row["Examen"])
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(60, y-20, row["Examen"])
 
-            c.setFont("Helvetica",9)
-            c.drawString(60,y-35,f"{row['Heure']} | {row['Klasse']}")
-            c.drawString(60,y-48,row["Enseignant"])
-            c.drawString(60,y-60,row["Surveillance"])
+            c.setFont("Helvetica", 9)
+            c.drawString(60, y-35, f"{row['Heure']} | {row['Klasse']}")
+            c.drawString(60, y-48, row["Enseignant"])
+            c.drawString(60, y-60, row["Surveillance"])
 
             color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
             c.setFillColor(color)
-            c.roundRect(width-130,y-40,65,20,6,fill=1)
+            c.roundRect(width-130, y-40, 65, 20, 6, fill=1)
 
             c.setFillColor(colors.white)
-            c.drawCentredString(width-98,y-27,row["Langue"])
+            c.drawCentredString(width-98, y-27, row["Langue"])
 
             y -= 90
 
@@ -164,24 +168,28 @@ def generate_pdf(data):
     c.save()
     return tmp.name
 
+# ===== EXPORT =====
 if not filtered_df.empty:
     pdf = generate_pdf(filtered_df)
-    with open(pdf,"rb") as f:
-        st.download_button(T[lang]["export"], f, "planning.pdf")
+    with open(pdf, "rb") as f:
+        st.download_button(T[lang]["export"], f, "planning_examens.pdf")
 
 st.divider()
 
-# ===== UI =====
+# ===== COULEURS UI =====
 def get_color(langue):
     return "blue" if "fr" in langue.lower() else "orange"
 
+# ===== AFFICHAGE =====
 if filtered_df.empty:
     st.warning(T[lang]["no_results"])
 else:
-    for date,group in filtered_df.groupby("Date"):
-        st.header(f"{T[lang]['date']} : {date}")
+    for date_obj, group in filtered_df.groupby("Date_obj"):
+        date_str = date_obj.strftime("%d.%m.%Y")
 
-        for _,row in group.iterrows():
+        st.header(f"{T[lang]['date']} : {date_str}")
+
+        for _, row in group.iterrows():
             color = get_color(row["Langue"])
 
             with st.container(border=True):
