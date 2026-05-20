@@ -2,73 +2,73 @@ import streamlit as st
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib import colors
 import tempfile
 
 # ===== CONFIG =====
 st.set_page_config(page_title="Examens", layout="wide")
 
 # ===== HEADER =====
-col_logo, col_lang, col_empty = st.columns([1, 2, 5])
+col_logo, col_lang, col_empty = st.columns([1,2,5])
 
 with col_logo:
     st.image("logo.png", width=100)
 
 with col_lang:
-    lang = st.selectbox("🌍", ["FR", "DE"], label_visibility="collapsed")
+    lang = st.selectbox("🌍", ["FR","DE"], label_visibility="collapsed")
 
-# ===== TRADUCTIONS =====
+# ===== TRAD =====
 T = {
-    "FR": {
-        "title": "📊 Planification des examens",
-        "filters": "🔎 Filtres",
-        "language": "Langue",
-        "class": "Classe",
-        "search": "🔎 Recherche",
-        "reset": "🔄 Réinitialiser",
-        "export": "📄 Export PDF",
-        "exams": "📋 Examens",
-        "classes": "🏫 Classes",
-        "languages": "🌍 Langues",
-        "teacher": "👨‍🏫 Enseignant",
-        "supervisor": "👀 Surveillance",
-        "date": "📅 Date",
-        "time": "⏰ Heure",
-        "no_results": "Aucun résultat"
-    },
-    "DE": {
-        "title": "📊 Prüfungsplanung",
-        "filters": "🔎 Filter",
-        "language": "Sprache",
-        "class": "Klasse",
-        "search": "🔎 Suche",
-        "reset": "🔄 Zurücksetzen",
-        "export": "📄 PDF Export",
-        "exams": "📋 Prüfungen",
-        "classes": "🏫 Klassen",
-        "languages": "🌍 Sprachen",
-        "teacher": "👨‍🏫 Lehrperson",
-        "supervisor": "👀 Aufsicht",
-        "date": "📅 Datum",
-        "time": "⏰ Zeit",
-        "no_results": "Keine Ergebnisse"
-    }
-}
+"FR":{
+"title":"📊 Planification des examens",
+"filters":"🔎 Filtres",
+"language":"Langue",
+"class":"Classe",
+"search":"🔎 Recherche",
+"reset":"🔄 Réinitialiser",
+"export":"📄 Export PDF",
+"date":"📅 Date",
+"time":"⏰ Heure",
+"teacher":"👨‍🏫 Enseignant",
+"supervisor":"👀 Surveillance",
+"no_results":"Aucun résultat",
+"exams":"📋 Examens",
+"classes":"🏫 Classes",
+"languages":"🌍 Langues"
+},
+"DE":{
+"title":"📊 Prüfungsplanung",
+"filters":"🔎 Filter",
+"language":"Sprache",
+"class":"Klasse",
+"search":"🔎 Suche",
+"reset":"🔄 Zurücksetzen",
+"export":"📄 PDF Export",
+"date":"📅 Datum",
+"time":"⏰ Zeit",
+"teacher":"👨‍🏫 Lehrperson",
+"supervisor":"👀 Aufsicht",
+"no_results":"Keine Ergebnisse",
+"exams":"📋 Prüfungen",
+"classes":"🏫 Klassen",
+"languages":"🌍 Sprachen"
+}}
 
 st.title(T[lang]["title"])
 
-# ===== LOAD DATA =====
+# ===== LOAD =====
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
-    df.columns = df.columns.str.strip().str.replace("\xa0", "")
+    df.columns = df.columns.str.strip()
 
     df = df.rename(columns={
-        "Prüfung": "Examen",
-        "Prüfungsdatum": "Date",
-        "Prüfungszeit": "Heure",
-        "Lehrperson der Klasse": "Enseignant",
-        "Aufsichtsperson": "Surveillance",
-        "Sprache": "Langue"
+        "Prüfung":"Examen",
+        "Prüfungsdatum":"Date",
+        "Prüfungszeit":"Heure",
+        "Lehrperson der Klasse":"Enseignant",
+        "Aufsichtsperson":"Surveillance",
+        "Sprache":"Langue"
     })
 
     df["Date_obj"] = pd.to_datetime(df["Date"])
@@ -85,15 +85,11 @@ if st.sidebar.button(T[lang]["reset"]):
     st.session_state.clear()
     st.rerun()
 
-langues = df["Langue"].dropna().unique()
-selected_langue = st.sidebar.multiselect(T[lang]["language"], langues)
-
-classes = df["Klasse"].dropna().unique()
-selected_classe = st.sidebar.multiselect(T[lang]["class"], classes)
-
+selected_langue = st.sidebar.multiselect(T[lang]["language"], df["Langue"].unique())
+selected_classe = st.sidebar.multiselect(T[lang]["class"], df["Klasse"].unique())
 search = st.sidebar.text_input(T[lang]["search"])
 
-# ===== FILTRAGE =====
+# ===== FILTER =====
 filtered_df = df.copy()
 
 if selected_langue:
@@ -104,71 +100,88 @@ if selected_classe:
 
 if search:
     filtered_df = filtered_df[
-        filtered_df.apply(
-            lambda row: row.astype(str).str.contains(search, case=False).any(),
-            axis=1
-        )
+        filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
     ]
 
-filtered_df = filtered_df.sort_values(by=["Date_obj", "Heure"])
+filtered_df = filtered_df.sort_values(by=["Date_obj","Heure"])
 
 # ===== KPI =====
-col1, col2, col3 = st.columns(3)
-col1.metric(T[lang]["exams"], len(filtered_df))
-col2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
-col3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
+c1,c2,c3 = st.columns(3)
+c1.metric(T[lang]["exams"], len(filtered_df))
+c2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
+c3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
 
-# ===== PDF EXPORT =====
+# ===== PDF =====
 def generate_pdf(data):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     c = canvas.Canvas(tmp.name, pagesize=A4)
 
-    y = 800
-    for date, group in data.groupby("Date"):
-        c.drawString(50, y, f"{date}")
+    width,height = A4
+    y = height - 60
+
+    try:
+        c.drawImage("logo.png", 40, height-80, width=70)
+    except:
+        pass
+
+    c.setFont("Helvetica-Bold",18)
+    c.drawString(130,height-55,"Planning des examens")
+    c.line(40,height-65,width-40,height-65)
+
+    y -= 40
+
+    for date,group in data.groupby("Date"):
+        c.setFont("Helvetica-Bold",13)
+        c.drawString(50,y,date)
         y -= 20
 
-        for _, row in group.iterrows():
-            text = f"{row['Heure']} | {row['Klasse']} | {row['Examen']} | {row['Langue']}"
-            c.drawString(70, y, text)
-            y -= 15
+        for _,row in group.iterrows():
+            c.setFillColor(colors.whitesmoke)
+            c.roundRect(45,y-75,width-90,70,12,fill=1)
 
-            if y < 50:
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold",11)
+            c.drawString(60,y-20,row["Examen"])
+
+            c.setFont("Helvetica",9)
+            c.drawString(60,y-35,f"{row['Heure']} | {row['Klasse']}")
+            c.drawString(60,y-48,row["Enseignant"])
+            c.drawString(60,y-60,row["Surveillance"])
+
+            color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
+            c.setFillColor(color)
+            c.roundRect(width-130,y-40,65,20,6,fill=1)
+
+            c.setFillColor(colors.white)
+            c.drawCentredString(width-98,y-27,row["Langue"])
+
+            y -= 90
+
+            if y < 100:
                 c.showPage()
-                y = 800
-
-        y -= 10
+                y = height - 60
 
     c.save()
     return tmp.name
 
 if not filtered_df.empty:
-    pdf_file = generate_pdf(filtered_df)
-    with open(pdf_file, "rb") as f:
-        st.download_button(
-            label=T[lang]["export"],
-            data=f,
-            file_name="planning_examens.pdf",
-            mime="application/pdf"
-        )
+    pdf = generate_pdf(filtered_df)
+    with open(pdf,"rb") as f:
+        st.download_button(T[lang]["export"], f, "planning.pdf")
 
 st.divider()
 
-# ===== COULEURS =====
+# ===== UI =====
 def get_color(langue):
-    if "fr" in langue.lower():
-        return "blue"
-    else:
-        return "orange"
+    return "blue" if "fr" in langue.lower() else "orange"
 
-# ===== AFFICHAGE =====
 if filtered_df.empty:
     st.warning(T[lang]["no_results"])
 else:
-    for date, group in filtered_df.groupby("Date"):
+    for date,group in filtered_df.groupby("Date"):
         st.header(f"{T[lang]['date']} : {date}")
 
-        for _, row in group.iterrows():
+        for _,row in group.iterrows():
             color = get_color(row["Langue"])
 
             with st.container(border=True):
@@ -179,6 +192,6 @@ else:
                 st.write(f"{T[lang]['supervisor']} : {row['Surveillance']}")
 
                 st.markdown(
-                    f"<span style='background-color:{color}; color:white; padding:4px 8px; border-radius:6px'>{row['Langue']}</span>",
+                    f"<span style='background-color:{color};color:white;padding:4px 8px;border-radius:6px'>{row['Langue']}</span>",
                     unsafe_allow_html=True
                 )
