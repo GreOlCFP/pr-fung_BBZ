@@ -71,7 +71,6 @@ def load_data():
         "Sprache":"Langue"
     })
 
-    # ✅ Date object (important)
     df["Date_obj"] = pd.to_datetime(df["Date"])
 
     return df
@@ -103,7 +102,7 @@ if search:
         filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
     ]
 
-# ✅ TRI CORRECT
+# ✅ TRI GARANTI
 filtered_df = filtered_df.sort_values(by=["Date_obj","Heure"])
 
 # ===== KPI =====
@@ -120,44 +119,79 @@ def generate_pdf(data):
     width, height = A4
     y = height - 60
 
-    # Logo
+    # TRI ABSOLU
+    data = data.sort_values(by=["Date_obj", "Heure"])
+
+    # LOGO
     try:
-        c.drawImage("logo.png", 40, height-80, width=70)
+        c.drawImage(
+            "logo.png",
+            40, height - 85,
+            width=70,
+            height=40,
+            preserveAspectRatio=True,
+            mask='auto'
+        )
     except:
         pass
 
+    # TITRE
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(130, height-55, "Planning des examens")
-    c.line(40, height-65, width-40, height-65)
+    c.drawString(120, height - 55, "Planning des examens")
 
-    y -= 40
+    c.setStrokeColor(colors.grey)
+    c.line(40, height - 70, width - 40, height - 70)
 
-    for date_obj, group in data.groupby("Date_obj"):
+    y -= 50
+
+    # CONTENU PAR DATE
+    for date_obj, group in data.groupby("Date_obj", sort=True):
+
         date_str = date_obj.strftime("%d.%m.%Y")
 
         c.setFont("Helvetica-Bold", 13)
+        c.setFillColor(colors.black)
         c.drawString(50, y, date_str)
+
         y -= 20
 
         for _, row in group.iterrows():
-            c.setFillColor(colors.whitesmoke)
-            c.roundRect(45, y-75, width-90, 70, 12, fill=1)
 
+            # CARTE
+            card_height = 75
+            c.setFillColor(colors.whitesmoke)
+            c.roundRect(45, y - card_height, width - 90, card_height, 10, fill=1)
+
+            # TEXTE
             c.setFillColor(colors.black)
+
             c.setFont("Helvetica-Bold", 11)
-            c.drawString(60, y-20, row["Examen"])
+            c.drawString(60, y - 20, row["Examen"])
 
             c.setFont("Helvetica", 9)
-            c.drawString(60, y-35, f"{row['Heure']} | {row['Klasse']}")
-            c.drawString(60, y-48, row["Enseignant"])
-            c.drawString(60, y-60, row["Surveillance"])
+            c.setFillColor(colors.darkgray)
+            c.drawString(60, y - 35, f"{row['Heure']}  |  {row['Klasse']}")
+            c.drawString(60, y - 48, row["Enseignant"])
+            c.drawString(60, y - 60, row["Surveillance"])
+
+            # BADGE LANGUE CENTRÉ
+            badge_w = 65
+            badge_h = 20
+            bx = width - 130
+            by = y - 40
 
             color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
+
             c.setFillColor(color)
-            c.roundRect(width-130, y-40, 65, 20, 6, fill=1)
+            c.roundRect(bx, by, badge_w, badge_h, 6, fill=1)
 
             c.setFillColor(colors.white)
-            c.drawCentredString(width-98, y-27, row["Langue"])
+            c.setFont("Helvetica-Bold", 9)
+
+            cx = bx + badge_w / 2
+            cy = by + badge_h / 2 - 3
+
+            c.drawCentredString(cx, cy, row["Langue"])
 
             y -= 90
 
