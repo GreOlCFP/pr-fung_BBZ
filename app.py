@@ -55,7 +55,7 @@ T = {
 
 st.title(T[lang]["title"])
 
-# ===== LOAD =====
+# ===== LOAD DATA =====
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
@@ -70,6 +70,7 @@ def load_data():
     })
 
     df["Date_obj"] = pd.to_datetime(df["Date"])
+
     return df
 
 df = load_data()
@@ -122,121 +123,6 @@ def generate_pdf(data):
 
     width, height = A4
 
-    # ✅ TRI SOLIDE
     data = data.sort_values(by=["Date_obj","Startzeit"])
 
     def draw_header():
-        logo_width = 70
-        try:
-            c.drawImage(
-                "logo.png",
-                40,
-                height - 80,
-                width=logo_width,
-                preserveAspectRatio=True,
-                mask='auto'
-            )
-        except:
-            pass
-
-        c.setFont("Helvetica-Bold", 18)
-        c.drawString(120, height - 55, "Planning des examens")
-
-        c.setStrokeColor(colors.grey)
-        c.line(40, height - 90, width - 40, height - 90)
-
-        return height - 120
-
-    y = draw_header()
-
-    # ✅ GROUPEMENT CORRECT
-    for date_obj, group in data.groupby("Date_obj", sort=True):
-
-        # Nouvelle page si manque de place
-        if y < 150:
-            add_footer(c, width)
-            c.showPage()
-            y = draw_header()
-
-        date_str = date_obj.strftime("%d.%m.%Y")
-
-        c.setFont("Helvetica-Bold", 13)
-        c.setFillColor(colors.black)
-        c.drawString(50, y, date_str)
-
-        y -= 20
-
-        for _, row in group.iterrows():
-
-            card_h = 75
-
-            c.setFillColor(colors.whitesmoke)
-            c.roundRect(45, y - card_h, width - 90, card_h, 10, fill=1)
-
-            c.setFillColor(colors.black)
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(60, y - 20, row["Examen"])
-
-            c.setFont("Helvetica", 9)
-            c.setFillColor(colors.darkgray)
-            c.drawString(60, y - 35, f"{row['Startzeit']} | {row['Klasse']}")
-            c.drawString(60, y - 50, row["Typ"])
-
-            # ===== BADGE LANGUE CENTRÉ =====
-            badge_w = 65
-            badge_h = 20
-
-            bx = width - 130
-            by = y - 40
-
-            color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
-
-            c.setFillColor(color)
-            c.roundRect(bx, by, badge_w, badge_h, 8, fill=1)
-
-            # ✅ centrage parfait
-            c.setFillColor(colors.white)
-            c.setFont("Helvetica-Bold", 9)
-
-            cx = bx + badge_w / 2
-            cy = by + badge_h / 2 - 3
-
-            c.drawCentredString(cx, cy, row["Langue"])
-
-            y -= 90
-
-    add_footer(c, width)
-    c.save()
-    return tmp.name
-
-# ===== EXPORT =====
-if not filtered_df.empty:
-    pdf = generate_pdf(filtered_df)
-    with open(pdf, "rb") as f:
-        st.download_button(T[lang]["export"], f, "planning_examens.pdf")
-
-st.divider()
-
-# ===== UI =====
-def get_color(langue):
-    return "blue" if "fr" in langue.lower() else "orange"
-
-if filtered_df.empty:
-    st.warning(T[lang]["no_results"])
-else:
-    for date_obj, group in filtered_df.groupby("Date_obj"):
-        st.header(f"{T[lang]['date']} : {date_obj.strftime('%d.%m.%Y')}")
-
-        for _, row in group.iterrows():
-            color = get_color(row["Langue"])
-
-            with st.container(border=True):
-                st.subheader(row["Examen"])
-                st.write(f"{T[lang]['time']} : {row['Startzeit']}")
-                st.write(f"{T[lang]['class']} : {row['Klasse']}")
-                st.write(f"{T[lang]['type']} : {row['Typ']}")
-
-                st.markdown(
-                    f"<span style='background-color:{color};color:white;padding:4px 8px;border-radius:6px'>{row['Langue']}</span>",
-                    unsafe_allow_html=True
-                )
