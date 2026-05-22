@@ -24,14 +24,13 @@ T = {
 "title":"📊 Planification des examens",
 "filters":"🔎 Filtres",
 "language":"Langue",
-"class":"🏫 Classe",
+"class":"Classe",
 "search":"🔎 Recherche",
 "reset":"🔄 Réinitialiser",
 "export":"📄 Export PDF",
 "date":"📅 Date",
 "time":"⏰ Heure",
-"teacher":"👨‍🏫 Enseignant",
-"supervisor":"👀 Surveillance",
+"type":"📝 Type d’examen",
 "no_results":"Aucun résultat",
 "exams":"📋 Examens",
 "classes":"🏫 Classes",
@@ -41,14 +40,13 @@ T = {
 "title":"📊 Prüfungsplanung",
 "filters":"🔎 Filter",
 "language":"Sprache",
-"class":"🏫 Klasse",
+"class":"Klasse",
 "search":"🔎 Suche",
 "reset":"🔄 Zurücksetzen",
 "export":"📄 PDF Export",
 "date":"📅 Datum",
-"time":"⏰ Zeit",
-"teacher":"👨‍🏫 Lehrperson",
-"supervisor":"👀 Aufsicht",
+"time":"⏰ Beginn",
+"type":"📝 Prüfungsart",
 "no_results":"Keine Ergebnisse",
 "exams":"📋 Prüfungen",
 "classes":"🏫 Klassen",
@@ -66,9 +64,8 @@ def load_data():
     df = df.rename(columns={
         "Prüfung":"Examen",
         "Prüfungsdatum":"Date",
-        "Prüfungszeit":"Heure",
-        "Lehrperson der Klasse":"Enseignant",
-        "Aufsichtsperson":"Surveillance",
+        "Prüfungszeit":"Startzeit",
+        "Art der Prüfung":"Typ",
         "Sprache":"Langue"
     })
 
@@ -77,6 +74,16 @@ def load_data():
     return df
 
 df = load_data()
+
+# ===== ICÔNES DESIGN =====
+def get_icon_typ(typ):
+    typ = str(typ).lower()
+    if "münd" in typ:
+        return "🎤"
+    elif "schrift" in typ:
+        return "📝"
+    else:
+        return "📘"
 
 # ===== SIDEBAR =====
 st.sidebar.header(T[lang]["filters"])
@@ -103,7 +110,7 @@ if search:
         filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
     ]
 
-filtered_df = filtered_df.sort_values(by=["Date_obj","Heure"])
+filtered_df = filtered_df.sort_values(by=["Date_obj","Startzeit"])
 
 # ===== KPI =====
 c1,c2,c3 = st.columns(3)
@@ -111,120 +118,80 @@ c1.metric(T[lang]["exams"], len(filtered_df))
 c2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
 c3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
 
-# ===== PDF ULTRA PRO =====
+# ===== PDF =====
 def generate_pdf(data):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     c = canvas.Canvas(tmp.name, pagesize=A4)
 
     width, height = A4
+    data = data.sort_values(by=["Date_obj","Startzeit"])
 
-    # ===== TRI =====
-    data = data.sort_values(by=["Date_obj", "Heure"])
-
-    # ===== HEADER ALIGNÉ =====
-    logo_w = 70
+    # HEADER ALIGNÉ
     logo_h = 40
-
-    logo_y_center = height - 60
-    logo_y = logo_y_center - (logo_h / 2)
+    center_y = height - 60
+    logo_y = center_y - logo_h/2
 
     try:
-        c.drawImage("logo.png", 40, logo_y, width=logo_w, height=logo_h, preserveAspectRatio=True)
+        c.drawImage("logo.png", 40, logo_y, width=70, height=logo_h)
     except:
         pass
 
-    # Titre aligné verticalement avec logo
     c.setFont("Helvetica-Bold", 18)
-    title_text = "Planning des examens"
+    c.drawString(120, center_y - 6, "Planning des examens")
 
-    # approx hauteur texte ~12
-    title_y = logo_y_center - 6
-
-    c.drawString(120, title_y, title_text)
-
-    # Ligne propre sous header
     line_y = logo_y - 10
-
-    c.setStrokeColor(colors.grey)
-    c.line(40, line_y, width - 40, line_y)
+    c.line(40, line_y, width-40, line_y)
 
     y = line_y - 30
 
-    # ===== CONTENT =====
-    for date_obj, group in data.groupby("Date_obj", sort=True):
-        date_str = date_obj.strftime("%d.%m.%Y")
-
+    for date_obj, group in data.groupby("Date_obj"):
         c.setFont("Helvetica-Bold", 13)
-        c.setFillColor(colors.black)
-        c.drawString(50, y, date_str)
-
+        c.drawString(50, y, date_obj.strftime("%d.%m.%Y"))
         y -= 20
 
         for _, row in group.iterrows():
 
-            # CARTE
-            card_h = 75
             c.setFillColor(colors.whitesmoke)
-            c.roundRect(45, y - card_h, width - 90, card_h, 10, fill=1)
+            c.roundRect(45, y-75, width-90, 75, 10, fill=1)
 
-            # TEXTE
+            # TITRE
             c.setFillColor(colors.black)
             c.setFont("Helvetica-Bold", 11)
-            c.drawString(60, y - 20, row["Examen"])
+            c.drawString(60, y-20, row["Examen"])
 
+            # INFOS
+            icon = get_icon_typ(row["Typ"])
             c.setFont("Helvetica", 9)
-            c.setFillColor(colors.darkgray)
-            c.drawString(60, y - 35, f"{row['Heure']} | {row['Klasse']}")
-            c.drawString(60, y - 48, row["Enseignant"])
-            c.drawString(60, y - 60, row["Surveillance"])
+            c.drawString(60, y-35, f"{row['Startzeit']} | {row['Klasse']}")
+            c.drawString(60, y-50, f"{icon} {row['Typ']}")
 
-            # BADGE ALIGNÉ
-            badge_w = 65
-            badge_h = 20
-            bx = width - 130
-            by = y - 40
-
+            # BADGE LANGUE
             color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
-
             c.setFillColor(color)
-            c.roundRect(bx, by, badge_w, badge_h, 6, fill=1)
+            c.roundRect(width-130, y-40, 65, 20, 6, fill=1)
 
             c.setFillColor(colors.white)
-            c.setFont("Helvetica-Bold", 9)
-
-            cx = bx + badge_w / 2
-            cy = by + badge_h / 2 - 3
-
-            c.drawCentredString(cx, cy, row["Langue"])
+            c.drawCentredString(width-98, y-27, row["Langue"])
 
             y -= 90
 
-            # PAGE BREAK + FOOTER
             if y < 120:
                 add_footer(c, width)
                 c.showPage()
                 y = height - 60
 
-    # FOOTER FINAL
     add_footer(c, width)
-
     c.save()
     return tmp.name
 
-
-# ===== FOOTER =====
+# FOOTER
 def add_footer(c, width):
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.grey)
-
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    c.drawRightString(width-40, 20, f"Généré le {now}")
 
-    footer_text = f"Généré le {now}"
-
-    c.drawRightString(width - 40, 20, footer_text)
-
-
-# ===== EXPORT =====
+# EXPORT
 if not filtered_df.empty:
     pdf = generate_pdf(filtered_df)
     with open(pdf, "rb") as f:
@@ -232,28 +199,25 @@ if not filtered_df.empty:
 
 st.divider()
 
-# ===== UI COULEUR =====
+# ===== UI =====
 def get_color(langue):
     return "blue" if "fr" in langue.lower() else "orange"
 
-# ===== AFFICHAGE =====
 if filtered_df.empty:
     st.warning(T[lang]["no_results"])
 else:
     for date_obj, group in filtered_df.groupby("Date_obj"):
-        date_str = date_obj.strftime("%d.%m.%Y")
-
-        st.header(f"{T[lang]['date']} : {date_str}")
+        st.header(f"{T[lang]['date']} : {date_obj.strftime('%d.%m.%Y')}")
 
         for _, row in group.iterrows():
             color = get_color(row["Langue"])
+            icon = get_icon_typ(row["Typ"])
 
             with st.container(border=True):
                 st.subheader(row["Examen"])
-                st.write(f"{T[lang]['time']} : {row['Heure']}")
+                st.write(f"{T[lang]['time']} : {row['Startzeit']}")
                 st.write(f"{T[lang]['class']} : {row['Klasse']}")
-                st.write(f"{T[lang]['teacher']} : {row['Enseignant']}")
-                st.write(f"{T[lang]['supervisor']} : {row['Surveillance']}")
+                st.write(f"{T[lang]['type']} : {icon} {row['Typ']}")
 
                 st.markdown(
                     f"<span style='background-color:{color};color:white;padding:4px 8px;border-radius:6px'>{row['Langue']}</span>",
