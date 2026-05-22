@@ -97,75 +97,91 @@ if selected_classe:
 
 if search:
     filtered_df = filtered_df[
-        filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
+        filtered_df.apply(
+            lambda r: r.astype(str).str.contains(search, case=False).any(),
+            axis=1
+        )
     ]
 
 filtered_df = filtered_df.sort_values(by=["Date_obj", "Startzeit"])
 
 # ===== PDF =====
-def add_footer(c, width):
-    c.setFont("Helvetica", 8)
-    c.setFillColor(colors.grey)
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
-    c.drawRightString(width - 40, 20, f"Généré le {now}")
-
 def generate_pdf(data):
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     c = canvas.Canvas(tmp.name, pagesize=A4)
 
     width, height = A4
+
+    # ✅ CONSTANTES STABLES (résout tous les problèmes de spacing)
+    TOP = height - 110
+    BOTTOM = 80
+    BLOCK = 100
+    DATE_SPACE = 30
+
     data = data.sort_values(by=["Date_obj", "Startzeit"])
 
     def draw_header():
         try:
-            c.drawImage("logo.png", 40, height - 80, width=70, preserveAspectRatio=True)
+            c.drawImage("logo.png", 40, height - 70, width=70, preserveAspectRatio=True)
         except:
             pass
 
         c.setFont("Helvetica-Bold", 18)
         c.drawString(120, height - 55, "Planning des examens")
+        c.line(40, height - 85, width - 40, height - 85)
 
-        c.line(40, height - 90, width - 40, height - 90)
+        return TOP
 
-        return height - 120
+    def footer():
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.grey)
+        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        c.drawRightString(width - 40, 20, f"Généré le {now}")
 
     y = draw_header()
 
-    # ✅ GROUPBY CORRECT (clé du bug corrigé)
     for date_obj, group in data.groupby("Date_obj", sort=True):
 
         date_str = date_obj.strftime("%d.%m.%Y")
 
-        if y < 150:
-            add_footer(c, width)
+        if y < BOTTOM + DATE_SPACE:
+            footer()
             c.showPage()
             y = draw_header()
 
-        # ✅ DATE AVEC ICÔNE
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(50, y, f"📅 {date_str}")
-        y -= 25
+        # ✅ ICÔNE CALENDRIER COMPATIBLE (dessin graphique)
+        c.setFillColor(colors.darkblue)
+        c.rect(50, y - 5, 6, 6, fill=1)
+
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 13)
+        c.drawString(65, y, date_str)
+
+        y -= DATE_SPACE
 
         for _, row in group.iterrows():
 
-            espace_bloc = 100
-
-            # ✅ évite coupure
-            if y - espace_bloc < 80:
-                add_footer(c, width)
+            if y - BLOCK < BOTTOM:
+                footer()
                 c.showPage()
                 y = draw_header()
 
-                # ✅ réaffiche la date sur nouvelle page
-                c.setFont("Helvetica-Bold", 14)
-                c.drawString(50, y, f"📅 {date_str}")
-                y -= 25
+                # redessiner date
+                c.setFillColor(colors.darkblue)
+                c.rect(50, y - 5, 6, 6, fill=1)
 
-            # carte
+                c.setFillColor(colors.black)
+                c.setFont("Helvetica-Bold", 13)
+                c.drawString(65, y, date_str)
+
+                y -= DATE_SPACE
+
+            # ===== CARTE =====
             c.setFillColor(colors.whitesmoke)
             c.roundRect(45, y - 75, width - 90, 75, 10, fill=1)
 
+            # TEXTE
             c.setFillColor(colors.black)
             c.setFont("Helvetica-Bold", 11)
             c.drawString(60, y - 20, row["Examen"])
@@ -175,7 +191,7 @@ def generate_pdf(data):
             c.drawString(60, y - 35, f"{row['Startzeit']} | {row['Klasse']}")
             c.drawString(60, y - 50, row["Typ"])
 
-            # badge langue
+            # BADGE LANGUE
             bx, by = width - 130, y - 40
             color = colors.blue if "fr" in str(row["Langue"]).lower() else colors.orange
 
@@ -186,11 +202,12 @@ def generate_pdf(data):
             c.setFont("Helvetica-Bold", 9)
             c.drawCentredString(bx + 32.5, by + 7, row["Langue"])
 
-            y -= espace_bloc
+            y -= BLOCK
 
-    add_footer(c, width)
+    footer()
     c.save()
     return tmp.name
+
 
 # ===== EXPORT =====
 if not filtered_df.empty:
