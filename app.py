@@ -107,75 +107,109 @@ c1.metric(T[lang]["exams"], len(filtered_df))
 c2.metric(T[lang]["classes"], filtered_df["Klasse"].nunique())
 c3.metric(T[lang]["languages"], filtered_df["Langue"].nunique())
 
-# ===== PDF =====
-def generate_pdf(data):
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    c = canvas.Canvas(tmp.name, pagesize=A4)
-
-    width, height = A4
-    data = data.sort_values(by=["Date_obj","Startzeit"])
-
-    # HEADER aligné
-    logo_h = 40
-    center_y = height - 60
-    logo_y = center_y - logo_h/2
-
-    try:
-        c.drawImage("logo.png", 40, logo_y, width=70, height=logo_h)
-    except:
-        pass
-
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(120, center_y - 6, "Planning des examens")
-
-    line_y = logo_y - 10
-    c.line(40, line_y, width-40, line_y)
-
-    y = line_y - 30
-
-    for date_obj, group in data.groupby("Date_obj"):
-        c.setFont("Helvetica-Bold", 13)
-        c.drawString(50, y, date_obj.strftime("%d.%m.%Y"))
-        y -= 20
-
-        for _, row in group.iterrows():
-
-            c.setFillColor(colors.whitesmoke)
-            c.roundRect(45, y-75, width-90, 75, 10, fill=1)
-
-            c.setFillColor(colors.black)
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(60, y-20, row["Examen"])
-
-            c.setFont("Helvetica", 9)
-            c.drawString(60, y-35, f"{row['Startzeit']} | {row['Klasse']}")
-            c.drawString(60, y-50, row["Typ"])
-
-            color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
-            c.setFillColor(color)
-            c.roundRect(width-130, y-40, 65, 20, 6, fill=1)
-
-            c.setFillColor(colors.white)
-            c.drawCentredString(width-98, y-27, row["Langue"])
-
-            y -= 90
-
-            if y < 120:
-                add_footer(c, width)
-                c.showPage()
-                y = height - 60
-
-    add_footer(c, width)
-    c.save()
-    return tmp.name
-
+# ===== FOOTER PDF =====
 def add_footer(c, width):
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.grey)
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     c.drawRightString(width-40, 20, f"Généré le {now}")
 
-# EXPORT
+# ===== PDF FINAL =====
+def generate_pdf(data):
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    c = canvas.Canvas(tmp.name, pagesize=A4)
+
+    width, height = A4
+
+    # ✅ TRI SOLIDE
+    data = data.sort_values(by=["Date_obj","Startzeit"])
+
+    def draw_header():
+        logo_width = 70
+        try:
+            c.drawImage(
+                "logo.png",
+                40,
+                height - 80,
+                width=logo_width,
+                preserveAspectRatio=True,
+                mask='auto'
+            )
+        except:
+            pass
+
+        c.setFont("Helvetica-Bold", 18)
+        c.drawString(120, height - 55, "Planning des examens")
+
+        c.setStrokeColor(colors.grey)
+        c.line(40, height - 90, width - 40, height - 90)
+
+        return height - 120
+
+    y = draw_header()
+
+    # ✅ GROUPEMENT CORRECT
+    for date_obj, group in data.groupby("Date_obj", sort=True):
+
+        # Nouvelle page si manque de place
+        if y < 150:
+            add_footer(c, width)
+            c.showPage()
+            y = draw_header()
+
+        date_str = date_obj.strftime("%d.%m.%Y")
+
+        c.setFont("Helvetica-Bold", 13)
+        c.setFillColor(colors.black)
+        c.drawString(50, y, date_str)
+
+        y -= 20
+
+        for _, row in group.iterrows():
+
+            card_h = 75
+
+            c.setFillColor(colors.whitesmoke)
+            c.roundRect(45, y - card_h, width - 90, card_h, 10, fill=1)
+
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(60, y - 20, row["Examen"])
+
+            c.setFont("Helvetica", 9)
+            c.setFillColor(colors.darkgray)
+            c.drawString(60, y - 35, f"{row['Startzeit']} | {row['Klasse']}")
+            c.drawString(60, y - 50, row["Typ"])
+
+            # ===== BADGE LANGUE CENTRÉ =====
+            badge_w = 65
+            badge_h = 20
+
+            bx = width - 130
+            by = y - 40
+
+            color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
+
+            c.setFillColor(color)
+            c.roundRect(bx, by, badge_w, badge_h, 8, fill=1)
+
+            # ✅ centrage parfait
+            c.setFillColor(colors.white)
+            c.setFont("Helvetica-Bold", 9)
+
+            cx = bx + badge_w / 2
+            cy = by + badge_h / 2 - 3
+
+            c.drawCentredString(cx, cy, row["Langue"])
+
+            y -= 90
+
+    add_footer(c, width)
+    c.save()
+    return tmp.name
+
+# ===== EXPORT =====
 if not filtered_df.empty:
     pdf = generate_pdf(filtered_df)
     with open(pdf, "rb") as f:
