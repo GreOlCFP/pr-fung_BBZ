@@ -55,7 +55,7 @@ T = {
 
 st.title(T[lang]["title"])
 
-# ===== LOAD DATA =====
+# ===== LOAD =====
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
@@ -70,20 +70,9 @@ def load_data():
     })
 
     df["Date_obj"] = pd.to_datetime(df["Date"])
-
     return df
 
 df = load_data()
-
-# ===== ICÔNES DESIGN =====
-def get_icon_typ(typ):
-    typ = str(typ).lower()
-    if "münd" in typ:
-        return "🎤"
-    elif "schrift" in typ:
-        return "📝"
-    else:
-        return "📘"
 
 # ===== SIDEBAR =====
 st.sidebar.header(T[lang]["filters"])
@@ -126,7 +115,7 @@ def generate_pdf(data):
     width, height = A4
     data = data.sort_values(by=["Date_obj","Startzeit"])
 
-    # HEADER ALIGNÉ
+    # HEADER aligné
     logo_h = 40
     center_y = height - 60
     logo_y = center_y - logo_h/2
@@ -154,18 +143,14 @@ def generate_pdf(data):
             c.setFillColor(colors.whitesmoke)
             c.roundRect(45, y-75, width-90, 75, 10, fill=1)
 
-            # TITRE
             c.setFillColor(colors.black)
             c.setFont("Helvetica-Bold", 11)
             c.drawString(60, y-20, row["Examen"])
 
-            # INFOS
-            icon = get_icon_typ(row["Typ"])
             c.setFont("Helvetica", 9)
             c.drawString(60, y-35, f"{row['Startzeit']} | {row['Klasse']}")
-            c.drawString(60, y-50, f"{icon} {row['Typ']}")
+            c.drawString(60, y-50, row["Typ"])
 
-            # BADGE LANGUE
             color = colors.blue if "fr" in row["Langue"].lower() else colors.orange
             c.setFillColor(color)
             c.roundRect(width-130, y-40, 65, 20, 6, fill=1)
@@ -184,7 +169,6 @@ def generate_pdf(data):
     c.save()
     return tmp.name
 
-# FOOTER
 def add_footer(c, width):
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.grey)
@@ -211,13 +195,12 @@ else:
 
         for _, row in group.iterrows():
             color = get_color(row["Langue"])
-            icon = get_icon_typ(row["Typ"])
 
             with st.container(border=True):
                 st.subheader(row["Examen"])
                 st.write(f"{T[lang]['time']} : {row['Startzeit']}")
                 st.write(f"{T[lang]['class']} : {row['Klasse']}")
-                st.write(f"{T[lang]['type']} : {icon} {row['Typ']}")
+                st.write(f"{T[lang]['type']} : {row['Typ']}")
 
                 st.markdown(
                     f"<span style='background-color:{color};color:white;padding:4px 8px;border-radius:6px'>{row['Langue']}</span>",
