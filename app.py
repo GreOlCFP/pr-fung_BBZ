@@ -50,7 +50,7 @@ T = {
 
 st.title(T[lang]["title"])
 
-# ===== LOAD DATA =====
+# ===== LOAD =====
 @st.cache_data
 def load_data():
     df = pd.read_excel("examens.xlsx")
@@ -65,8 +65,6 @@ def load_data():
     })
 
     df["Date_obj"] = pd.to_datetime(df["Date"], errors="coerce")
-
-    # ✅ CORRECTION MAJEURE (évite dates dupliquées)
     df["Date_only"] = df["Date_obj"].dt.date
 
     return df
@@ -114,11 +112,10 @@ def generate_pdf(data):
 
     width, height = A4
 
-    # ✅ CONSTANTES DESIGN
     TOP = height - 110
     BOTTOM = 80
-    BLOCK = 100
-    DATE_SPACE = 30
+    BLOCK = 95
+    DATE_SPACE = 35
 
     data = data.sort_values(by=["Date_obj", "Startzeit"])
 
@@ -140,34 +137,33 @@ def generate_pdf(data):
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
         c.drawRightString(width - 40, 20, f"Généré le {now}")
 
-    # ✅ ICÔNE CALENDRIER PROPRE
-    def draw_calendar_icon(x, y):
-        c.setFillColor(colors.darkblue)
-        c.roundRect(x, y - 6, 12, 10, 2, fill=1)
+    # ✅ DATE HEADER PARFAIT (icône + alignement)
+    def draw_date_header(y, date_str):
+        icon_size = 10
 
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 6)
-        c.drawCentredString(x + 6, y - 2, "D")
+        # icône calendrier
+        c.setFillColor(colors.darkblue)
+        c.roundRect(50, y - 8, icon_size, icon_size, 2, fill=1)
+
+        # texte aligné verticalement
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 13)
+        c.drawString(70, y - 2, date_str)
 
     y = draw_header()
 
-    # ✅ GROUPBY CORRECT
+    # ✅ GROUPBY FINAL
     for date_obj, group in data.groupby("Date_only", sort=True):
 
         date_str = pd.to_datetime(date_obj).strftime("%d.%m.%Y")
 
+        # espace pour la date
         if y < BOTTOM + DATE_SPACE:
             footer()
             c.showPage()
             y = draw_header()
 
-        # ✅ DESSIN DATE
-        draw_calendar_icon(50, y)
-
-        c.setFillColor(colors.black)
-        c.setFont("Helvetica-Bold", 13)
-        c.drawString(70, y, date_str)
-
+        draw_date_header(y, date_str)
         y -= DATE_SPACE
 
         for _, row in group.iterrows():
@@ -177,12 +173,10 @@ def generate_pdf(data):
                 c.showPage()
                 y = draw_header()
 
-                draw_calendar_icon(50, y)
-                c.setFont("Helvetica-Bold", 13)
-                c.drawString(70, y, date_str)
+                draw_date_header(y, date_str)
                 y -= DATE_SPACE
 
-            # CARTE
+            # ===== CARTE =====
             c.setFillColor(colors.whitesmoke)
             c.roundRect(45, y - 75, width - 90, 75, 10, fill=1)
 
@@ -212,7 +206,6 @@ def generate_pdf(data):
     footer()
     c.save()
     return tmp.name
-
 
 # ===== EXPORT =====
 if not filtered_df.empty:
