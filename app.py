@@ -65,6 +65,10 @@ def load_data():
     })
 
     df["Date_obj"] = pd.to_datetime(df["Date"], errors="coerce")
+
+    # ✅ CORRECTION MAJEURE (évite dates dupliquées)
+    df["Date_only"] = df["Date_obj"].dt.date
+
     return df
 
 df = load_data()
@@ -97,10 +101,7 @@ if selected_classe:
 
 if search:
     filtered_df = filtered_df[
-        filtered_df.apply(
-            lambda r: r.astype(str).str.contains(search, case=False).any(),
-            axis=1
-        )
+        filtered_df.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)
     ]
 
 filtered_df = filtered_df.sort_values(by=["Date_obj", "Startzeit"])
@@ -113,7 +114,7 @@ def generate_pdf(data):
 
     width, height = A4
 
-    # ✅ CONSTANTES STABLES (résout tous les problèmes de spacing)
+    # ✅ CONSTANTES DESIGN
     TOP = height - 110
     BOTTOM = 80
     BLOCK = 100
@@ -139,24 +140,33 @@ def generate_pdf(data):
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
         c.drawRightString(width - 40, 20, f"Généré le {now}")
 
+    # ✅ ICÔNE CALENDRIER PROPRE
+    def draw_calendar_icon(x, y):
+        c.setFillColor(colors.darkblue)
+        c.roundRect(x, y - 6, 12, 10, 2, fill=1)
+
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 6)
+        c.drawCentredString(x + 6, y - 2, "D")
+
     y = draw_header()
 
-    for date_obj, group in data.groupby("Date_obj", sort=True):
+    # ✅ GROUPBY CORRECT
+    for date_obj, group in data.groupby("Date_only", sort=True):
 
-        date_str = date_obj.strftime("%d.%m.%Y")
+        date_str = pd.to_datetime(date_obj).strftime("%d.%m.%Y")
 
         if y < BOTTOM + DATE_SPACE:
             footer()
             c.showPage()
             y = draw_header()
 
-        # ✅ ICÔNE CALENDRIER COMPATIBLE (dessin graphique)
-        c.setFillColor(colors.darkblue)
-        c.rect(50, y - 5, 6, 6, fill=1)
+        # ✅ DESSIN DATE
+        draw_calendar_icon(50, y)
 
         c.setFillColor(colors.black)
         c.setFont("Helvetica-Bold", 13)
-        c.drawString(65, y, date_str)
+        c.drawString(70, y, date_str)
 
         y -= DATE_SPACE
 
@@ -167,17 +177,12 @@ def generate_pdf(data):
                 c.showPage()
                 y = draw_header()
 
-                # redessiner date
-                c.setFillColor(colors.darkblue)
-                c.rect(50, y - 5, 6, 6, fill=1)
-
-                c.setFillColor(colors.black)
+                draw_calendar_icon(50, y)
                 c.setFont("Helvetica-Bold", 13)
-                c.drawString(65, y, date_str)
-
+                c.drawString(70, y, date_str)
                 y -= DATE_SPACE
 
-            # ===== CARTE =====
+            # CARTE
             c.setFillColor(colors.whitesmoke)
             c.roundRect(45, y - 75, width - 90, 75, 10, fill=1)
 
@@ -221,9 +226,9 @@ st.divider()
 if filtered_df.empty:
     st.warning(T[lang]["no_results"])
 else:
-    for date_obj, group in filtered_df.groupby("Date_obj", sort=True):
+    for date_obj, group in filtered_df.groupby("Date_only", sort=True):
 
-        st.header(f"{T[lang]['date']} : {date_obj.strftime('%d.%m.%Y')}")
+        st.header(f"{T[lang]['date']} : {pd.to_datetime(date_obj).strftime('%d.%m.%Y')}")
 
         for _, row in group.iterrows():
 
@@ -239,3 +244,4 @@ else:
                     f"<span style='background-color:{color};color:white;padding:4px 8px;border-radius:6px'>{row['Langue']}</span>",
                     unsafe_allow_html=True
                 )
+``
