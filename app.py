@@ -244,4 +244,3 @@ else:
                     f"<span style='background-color:{color};color:white;padding:4px 8px;border-radius:6px'>{row['Langue']}</span>",
                     unsafe_allow_html=True
                 )
-``
